@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <title>Parallel Coordinates</title>
+
+	<style></style>
+	</head>
+<body>
+	<style>
+
+	.axis line, .axis path {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.background path {
+  fill: none;
+  stroke: #ccc;
+  stroke-opacity: .4;
+  shape-rendering: crispEdges;
+  stroke-width: 2;
+}
+
+path:hover {
+	cursor: pointer;
+}
+
+.background path:hover {
+	stroke: steelblue;
+
+}
+
+.foreground  {
+  fill: none;
+  stroke: steelblue;
+  stroke-opacity: .7;
+}
+</style>
+
+    <script type="text/javascript" src="js/d3.js"></script>
+    <script type="text/javascript" src="js/d3.min.js"></script>
+    <script type="text/javascript">
+
+   
+    	var m = [30, 10, 10, 10],
+		    w = 960 - m[1] - m[3],
+		    h = 500 - m[0] - m[2];
+
+		var x = d3.scale.ordinal().rangePoints([0, w], 1),
+		    y = {},
+		    dragging = {};
+
+		var line = d3.svg.line().interpolate("linear"),
+		    axis = d3.svg.axis().orient("left"),
+		    background,
+		    foreground;
+
+		var main = d3.select("body")
+			.append("svg:svg")
+			    .attr("width", w + m[1] + m[3])
+			    .attr("height", h + m[0] + m[2])
+		  	.append("svg:g")
+		    	.attr("transform", "translate(" + m[3] + "," + m[0] + ")");
+
+		var linePlayers =[];
+		d3.csv("DraftTest.csv", function(players) {
+			//console.log(players);
+
+			x.domain(dimensions = d3.keys(players[0]).filter(function(key) {
+		    	// return d != "Player " && (y[d] = d3.scale.linear()
+		     //    	.domain(d3.extent(players, function(p) { 
+		     //    		return +p[d]; 
+		        		
+		     //    	}))
+		     //    .range([h, 0]));
+				linePlayers = players;
+				switch(key) {
+					case "Rnd":
+						y[key] = d3.scale.ordinal()
+							.domain([1,2,3,4,5,6,7])
+							.range(createRange(6));
+						return y[key];
+
+					case "Team":
+						y[key] = d3.scale.ordinal()
+								.domain([
+									'Arizona Cardinals',
+									'Carolina Panthers',
+									'Chicago Bears',
+									'Indianapolis Colts',
+									'Kansas City Chiefs',
+									'Minnesota Vikings',
+									'Philadelphia Eagles',
+									'Seattle Seahawks',
+									'Tampa Bay Buccaneers',
+									'Washington Redskins'
+								])
+								.range(createRange(9));;
+
+						return y[key];
+					
+					case "Pos": 
+						y[key] = d3.scale.ordinal()
+									.domain([
+										'QB',
+										'RB',
+										'WR',
+										'OT',
+										'DT',
+										'LB',
+										'S',
+										'K'
+									])
+									.range(createRange(7));
+						return y[key];
+
+					case "College":
+						y[key] = d3.scale.ordinal()
+									.domain([
+										'Arizona',
+										'Baylor',
+										'Boise State',
+										'Boston College',
+										'Florida Atlantic',
+										'Georgia',
+										'Memphis',
+										'Presbyterian',
+										'South Carolina',
+										'Stanford',
+										'USC',
+										'Wisconsin'
+									])
+									.range(createRange(11));
+						return y[key];
+
+					case "Conf" :
+						y[key] = d3.scale.ordinal()
+									.domain([
+										'ACC',
+										'Big 12',
+										'Big South',
+										'Big Ten', 
+										'C-USA',
+										'MWC',
+										'Pac-12',
+										'SEC',
+										'Sun Belt'
+									])
+									.range(createRange(8));
+						return y[key];
+
+					case "Pro Bowls":
+						y[key] = d3.scale.ordinal()
+									.domain([0,1,2,3])
+									.range(createRange(3));
+						return y[key];
+					
+				}
+
+		    }));
+			
+			console.log("DIMENSIONS");
+			console.log(dimensions);
+			
+
+			function createRange(num)
+			{
+				var range =[];
+
+				for (var i = 0; i<=num;i++)
+				{
+					range.push((h/num)*i);
+				}
+				return range;
+			}
+
+			console.log("PLAYERS");
+			console.log(players);
+
+		    // Add grey background lines for context.
+			background = main.append("svg:g")
+			    .attr("class", "background")
+			    .selectAll("path")
+			    .data(players)
+			    .enter().append("svg:path")
+			    .attr("d", pathM)
+			    .attr("id", function(d,i) { return "b"+i;})
+			    .attr("playerid",function(d,i) { return i;});
+
+
+	  		// Add blue foreground lines for focus.
+	  		foreground = main.append("svg:g")
+	      		.attr("class", "foreground")
+	    		.selectAll("path")
+	      		.data(players)
+	    		.enter().append("svg:path")
+	      		.attr("d", pathM)
+	      		.attr("id", function(d,i) { return "f"+i;})
+	      		.attr("playerid", function(d,i) { return i;})
+	      		.attr("stroke", "steelblue")
+			      .attr("stroke-width", "2")
+			      .attr("fill", "none")
+			      .style("display","none");
+	      		
+
+	    	d3.selectAll("path").on("click", function() {
+	    			
+	    		highlightPlayer(d3.select(this).attr("playerid"));
+	    			// console.log(d3.select(this).attr("playerid"));
+	    			// var id = "f"+d3.select(this).attr("playerid");
+	    			// d3.select("#"+id+"").transition(3000).style("display",null);
+			});
+
+	    	function highlightPlayer(id)
+	    	{
+	    		foreground = main.append("svg:g")
+	      		.attr("class", "foreground")
+	    		.selectAll("path")
+	      		.data([players[id]])
+	    		.enter().append("svg:path")
+	      		.attr("d", pathM)
+	      		.attr("id", function(d,i) { return "f"+i;})
+	      		.attr("playerid", function(d,i) { return i;})
+	      		.attr("stroke", "steelblue")
+			      .attr("stroke-width", "2")
+			      .attr("fill", "none");
+
+
+			    var playerLength = foreground.node().getTotalLength();
+
+	      
+
+	      		foreground.attr("stroke-dasharray", playerLength + " " + playerLength)
+				      .attr("stroke-dashoffset", playerLength)
+				      .transition()
+				        .duration(3000)
+				        .ease("linear")
+				        .attr("stroke-dashoffset", 0);
+
+	    	}
+
+	      	console.log('PATH');
+	      	//console.log(foreground.node());
+
+	      	//Add group element for each dimension
+			var g = main.selectAll(".dimension")
+				.data(dimensions)
+				.enter()
+				.append("svg:g")
+					.attr("class","dimension")
+					.attr("transform", function(d) {
+						return "translate("+x(d)+")"; 
+					});
+
+			g.append("svg:g")
+				.attr("class","axis")
+				.each(function(d) {
+					d3.select(this).call(axis.scale(y[d]));
+				})
+				.append("svg:text")
+					.attr("text-anchor", "middle")
+					.attr("y", -10)
+					.text(String);
+
+
+		});
+		
+	
+		// Returns the path for a given data point.
+		function pathM(d,i) 
+		{
+			var res = line(dimensions.map(function(p) { 
+		  		return [x(p),y[p](d[p])];
+		  	}));
+		  	return res;
+		}
+
+		function position(d) {
+		  var v = dragging[d];
+		  return v == null ? x(d) : v;
+		}
+
+		
+		// var svg = d3.select("body")
+		//       .append("svg:svg")
+		//       .attr("width", w)
+		//       .attr("height", h)
+		//       .attr("id", "visualization")
+		//       .attr("xmlns", "http://www.w3.org/2000/svg");
+		
+
+		// var dataL = [1,9,8,7,5,6,7,3,4,5,6];
+		// //d3.range(11).map(function(){return Math.random()*10});
+	 //    var xL = d3.scale.linear().domain([0, 10]).range([0, 700]);
+	 //    var yL = d3.scale.linear().domain([0, 10]).range([10, 290]);
+	  
+	 //    var lineL = d3.svg.line()
+	 //      .interpolate("monotone")
+	 //      .x(function(d,i) {return xL(i);})
+	 //      .y(function(d) {return yL(d);})
+
+
+
+	 //    var pathL = svg.append("path")
+	 //      .attr("d", lineL(dataL))
+	 //      .attr("stroke", "steelblue")
+	 //      .attr("stroke-width", "2")
+	 //      .attr("fill", "none");
+
+	 //    var totalLength = pathL.node().getTotalLength();
+
+	 //    pathL
+	 //      .attr("stroke-dasharray", totalLength + " " + totalLength)
+	 //      .attr("stroke-dashoffset", totalLength)
+	 //      .transition()
+	 //        .duration(2000)
+	 //        .ease("linear")
+	 //        .attr("stroke-dashoffset", 0);
+
+	 //    svg.on("click", function(){
+	 //      pathL      
+	 //        .transition()
+	 //        .duration(2000)
+	 //        .ease("linear")
+	 //        .attr("stroke-dashoffset", totalLength);
+	 //    })
+
+
+	function brush() 
+	{
+	  	var actives = dimensions.filter(function(p) 
+	  			{ 
+	  				return !y[p].brush.empty(); 
+	  			}
+	  		),
+	      	extents = actives.map(function(p) 
+	      		{ 
+	      			return y[p].brush.extent(); 
+	      		}
+	      	);
+	  
+	  foreground.style("display", function(d) 
+	  {
+	    	return actives.every(function(p, i) 
+		    		{
+		      			return extents[i][0] <= d[p] && d[p] <= extents[i][1];
+		    		}
+	    		) ? null : "none";
+	  });
+	}
+
+    </script>
+</body>
+
+</html>
+
